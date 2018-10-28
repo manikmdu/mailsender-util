@@ -1,0 +1,147 @@
+service: apistore-util-mail-sender
+
+custom:
+  description:
+    serviceName: Mail Sender Util 
+    teamName: API Store Team
+  teamNamePrefix: apistore
+  stackNameInfix: mailsender
+  serviceName: mailsubscriber
+  stage: '${opt:stage, self:provider.stage}'
+  #denodoPassword: test
+  #apiContext: fund-allocation
+  tags:
+    Squad: APIStore
+    Application: APICache
+  Tags:
+    -
+      Key: Squad
+      Value: APIStore
+    -
+      Key: Application
+      Value: APICache
+      
+  dev:
+    role: "arn:aws:iam::974521262434:role/apistore-email-sender-role"
+    proxy: ""
+    proxyPort: null
+    cfnRole: 'arn:aws:iam::130154230810:role/apicache-gitlabrunner'
+    resourcePolicy: null
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  region: eu-west-1
+  stackName: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-${self:custom.stage}
+  role: '${self:custom.${self:custom.stage}.role}'
+  #cfnRole: '${self:custom.${self:custom.stage}.cfnRole}'
+  environment:
+    stage: '${self:custom.stage}'
+    #API_USERNAME: 'apistore.fund-allocation-api.${self:custom.stage}.api-username'
+    #DYNAMODB_TABLE: ${self:custom.teamNamePrefix}.${self:custom.serviceName}.${self:custom.stage}
+    #DENODO_ENDPOINT: 'https://%s:%s@${self:custom.${self:custom.stage}.denodo.host}:${self:custom.${self:custom.stage}.denodo.port}${self:custom.${self:custom.stage}.denodo.path}'
+    #DENODO_USERNAME: '${self:custom.${self:custom.stage}.denodo.username}'
+    #proxy: '${self:custom.${self:custom.stage}.proxy}'
+    #sqsMTrackerQueueUrl: '${self:custom.sqsMTrackerQueueUrl}'
+    #delete: true
+  tags: '${self:custom.tags}'
+  #resourcePolicy: '${self:custom.${self:custom.stage}.resourcePolicy}'
+
+
+functions:
+  sendMailWithAttachment:  
+    name: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-sendMail-${self:custom.stage}
+    handler: src/mailSenderSQSDataSrc.send
+    tags: '${self:custom.tags}'
+
+  prepareDownloadS3Object:  
+    name: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-prepareDownloadLink-${self:custom.stage}
+    handler: src/prepareDownloadZip.handler
+    tags: '${self:custom.tags}'
+
+  docChangeIdentifier:
+    name: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-docChangeIdentifier-${self:custom.stage}
+    handler: src/docChangeIdentifier.handler
+    tags: '${self:custom.tags}'
+    events:
+      - schedule:
+          name: CH_ALL_DATA_CHANGE_SCHEDULE_DAILY_RUN
+          rate: rate(60 minutes)
+          enabled: true
+          input:
+            - country: CH
+            - lang: ALL
+            - docType: Fund_Documents
+            - docSubType: KIID
+
+resources:
+  Description: The ${self:custom.description.serviceName} of the ${self:custom.description.teamName}
+  Resources:
+    BucketForKiidDoc:
+      Type: AWS::S3::Bucket
+      Properties:
+        Tags: '${self:custom.Tags}'
+        BucketName: apistore.manikmdu.dev.doc.kiid
+    DocStoreDynomoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: docId
+            AttributeType: S
+          -
+            AttributeName: dT_dST_cty_loc
+            AttributeType: S
+          # -
+          #   AttributeName: fundType
+          #   AttributeType: S
+          # -
+          #   AttributeName: cty
+          #   AttributeType: S
+          # -
+          #   AttributeName: locale
+          #   AttributeType: S
+          # -
+          #   AttributeName: loc
+          #   AttributeType: S
+          # -
+          #   AttributeName: creationDate
+          #   AttributeType: S
+          -
+            AttributeName: publishedDate
+            AttributeType: S
+          # -
+          #   AttributeName: cacheCreationDate
+          #   AttributeType: S
+          # -
+          #   AttributeName: cachePublishedDate
+          #   AttributeType: S
+        KeySchema:
+          -
+            AttributeName: docId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          -
+            IndexName: dT_dST_cty_loc-index
+            KeySchema:
+              -
+                AttributeName: dT_dST_cty_loc
+                KeyType: HASH
+              -
+                AttributeName: publishedDate
+                KeyType: RANGE
+            Projection:
+              # NonKeyAttributes:
+              #   - locale
+              #   - loc
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits:  5
+              WriteCapacityUnits: 5
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        SSESpecification:
+          SSEEnabled: true
+        TableName: DOC_STORE_TABLE

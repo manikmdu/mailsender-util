@@ -1,0 +1,24 @@
+{
+  "name": "@nnip-apistore/apistore-util-mail-sender",
+  "version": "0.0.0-dummy-version-that-is-not-to-be-used-or-changed",
+  "description": "Utility modules to send email through SES",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "API Store Team",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "manikmdu"
+  },
+  "dependencies": {
+    "archiver": "^3.0.0",
+    "aws-sdk": "^2.340.0",
+    "nodemailer": "^4.6.8",
+    "request": "^2.88.0",
+    "request-debug": "^0.2.0",
+    "stream": "0.0.2",
+    "util": "^0.11.0"
+  }
+}
