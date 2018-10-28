@@ -8,6 +8,8 @@ custom:
   stackNameInfix: mailsender
   serviceName: mailsubscriber
   stage: '${opt:stage, self:provider.stage}'
+  docTableName: DOC_STORE_TABLE
+  docTableIndexName: dT_dST_cty_loc-index
   #denodoPassword: test
   #apiContext: fund-allocation
   tags:
@@ -37,6 +39,9 @@ provider:
   #cfnRole: '${self:custom.${self:custom.stage}.cfnRole}'
   environment:
     stage: '${self:custom.stage}'
+    docTableName: '${self:custom.docTableName}'
+    docTableIndexName: '${self:custom.docTableIndexName}'
+    defaultPeriod: 'THIS_MONTH'
     #API_USERNAME: 'apistore.fund-allocation-api.${self:custom.stage}.api-username'
     #DYNAMODB_TABLE: ${self:custom.teamNamePrefix}.${self:custom.serviceName}.${self:custom.stage}
     #DENODO_ENDPOINT: 'https://%s:%s@${self:custom.${self:custom.stage}.denodo.host}:${self:custom.${self:custom.stage}.denodo.port}${self:custom.${self:custom.stage}.denodo.path}'
