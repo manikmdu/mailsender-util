@@ -42,7 +42,7 @@ handler = async (req, ctx, cb) => {
     ))).catch(err => { throw new Error(err) } );
 
     await new Promise((resolve, reject) => { 
-        var myStream = streamTo('apistore.manikmdu.dev.doc.download.kiid', 'fileName.zip');		//Now we instantiate that pipe...
+        var myStream = streamTo('apistore.manikmdu.dev.doc.download.kiid', 'kiid.zip');		//Now we instantiate that pipe...
         var archive = archiver('zip');
         archive.on('error', err => { throw new Error(err); } );
         

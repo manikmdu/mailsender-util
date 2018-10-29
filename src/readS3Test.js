@@ -1,5 +1,5 @@
 'use strict';
-var emailCommons = require('./email-commons');
+var emailCommons = require('../../sample/email-commons');
 var aws = require('aws-sdk'); 
 
 function test() {
