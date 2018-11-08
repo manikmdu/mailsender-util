@@ -1,17 +1,17 @@
-service: apistore-util-mail-sender
+service: manikmdu-util-mail-sender
+plugins:
+  - serverless-step-functions
 
 custom:
   description:
-    serviceName: Mail Sender Util 
+    serviceName: KIID Dissimination Service
     teamName: API Store Team
-  teamNamePrefix: apistore
+  teamNamePrefix: manikmdu
   stackNameInfix: mailsender
   serviceName: mailsubscriber
   stage: '${opt:stage, self:provider.stage}'
-  docTableName: DOC_STORE_TABLE
+  docTableName: MANIKMDU_DOC_STORE_TABLE
   docTableIndexName: dT_dST_cty_loc-index
-  #denodoPassword: test
-  #apiContext: fund-allocation
   tags:
     Squad: APIStore
     Application: APICache
@@ -24,7 +24,8 @@ custom:
       Value: APICache
       
   dev:
-    role: "arn:aws:iam::974521262434:role/apistore-email-sender-role"
+    #role: "arn:aws:iam::974521262434:role/apistore-email-sender-role"
+    role: "arn:aws:iam::130154230810:role/mani-email-sender-role"
     proxy: ""
     proxyPort: null
     cfnRole: 'arn:aws:iam::130154230810:role/apicache-gitlabrunner'
@@ -58,10 +59,13 @@ functions:
     name: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-sendMail-${self:custom.stage}
     handler: src/mailSenderSQSDataSrc.send
     tags: '${self:custom.tags}'
+    
 
   prepareDownloadS3Object:  
-    name: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-prepareDownloadLink-${self:custom.stage}
-    handler: src/prepareDownloadZip.handler
+    name: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-prepareDocArchive-${self:custom.stage}
+    handler: src/prepareDocArchive.handler
+    timeout: 120
+    memorySize: 2028
     tags: '${self:custom.tags}'
 
   docChangeIdentifier:
@@ -78,6 +82,48 @@ functions:
             - lang: ALL
             - docType: Fund_Documents
             - docSubType: KIID
+stepFunctions:
+  stateMachines:
+    SampleStateMachine:
+      name: SampleStateMachine
+      definition:
+        StartAt: InputDefinition
+        States:
+          InputDefinition:
+            Type: Pass
+            Result:
+              country: CH
+              language: de
+              docType: Fund_Documents
+              docSubType: KIID
+              period: LAST_WEEK
+              emailAddress: manikmdu@me.com
+            ResultPath: "$.data"
+            Next: FetchDocChanges
+          FetchDocChanges:
+            Type: Task
+            Resource: arn:aws:lambda:eu-west-1:130154230810:function:manikmdu-mailsender-docChangeIdentifier-dev
+            ResultPath: "$.docChangeData"
+            Next: CheckDocChanges
+          CheckDocChanges:
+            Type: Choice
+            Choices:
+            - Variable: "$.docChangeData.docChangeExist"
+              BooleanEquals: true
+              Next: PrepareZip
+            Default: NoDocChange
+          PrepareZip:
+            Type: Task
+            Resource: arn:aws:lambda:eu-west-1:130154230810:function:manikmdu-mailsender-prepareDocArchive-dev
+            ResultPath: "$.docArchiveData"
+            Next: PrepareEmailToSendAndQueue
+          PrepareEmailToSendAndQueue:
+            Type: Task
+            Resource: arn:aws:lambda:eu-west-1:130154230810:function:manikmdu-mailsender-sendMail-dev
+            End: true
+          NoDocChange:
+            Type: Pass
+            End: true
 
 resources:
   Description: The ${self:custom.description.serviceName} of the ${self:custom.description.teamName}
@@ -86,7 +132,7 @@ resources:
       Type: AWS::S3::Bucket
       Properties:
         Tags: '${self:custom.Tags}'
-        BucketName: apistore.manikmdu.dev.doc.kiid
+        BucketName: manikmdu.test.nnip.dev.doc.kiid
     DocStoreDynomoDBTable:
       Type: 'AWS::DynamoDB::Table'
       DeletionPolicy: Retain
@@ -98,30 +144,9 @@ resources:
           -
             AttributeName: dT_dST_cty_loc
             AttributeType: S
-          # -
-          #   AttributeName: fundType
-          #   AttributeType: S
-          # -
-          #   AttributeName: cty
-          #   AttributeType: S
-          # -
-          #   AttributeName: locale
-          #   AttributeType: S
-          # -
-          #   AttributeName: loc
-          #   AttributeType: S
-          # -
-          #   AttributeName: creationDate
-          #   AttributeType: S
           -
             AttributeName: publishedDate
             AttributeType: S
-          # -
-          #   AttributeName: cacheCreationDate
-          #   AttributeType: S
-          # -
-          #   AttributeName: cachePublishedDate
-          #   AttributeType: S
         KeySchema:
           -
             AttributeName: docId
@@ -137,9 +162,6 @@ resources:
                 AttributeName: publishedDate
                 KeyType: RANGE
             Projection:
-              # NonKeyAttributes:
-              #   - locale
-              #   - loc
               ProjectionType: ALL
             ProvisionedThroughput:
               ReadCapacityUnits:  5
@@ -149,4 +171,25 @@ resources:
           WriteCapacityUnits: 5
         SSESpecification:
           SSEEnabled: true
-        TableName: DOC_STORE_TABLE
+        TableName: MANIKMDU_DOC_STORE_TABLE
+    # LambdaInvokePermissionForFn1:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     FunctionName: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-sendMail-${self:custom.stage}
+    #     Action: 'lambda:InvokeFunction'
+    #     Principal: states.amazonaws.com
+    #     SourceArn:  arn:aws:states:::apistore*
+    # LambdaInvokePermissionForFn2:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     FunctionName: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-prepareDocArchive-${self:custom.stage}
+    #     Action: 'lambda:InvokeFunction'
+    #     Principal: states.amazonaws.com
+    #     SourceArn: arn:aws:states:::apistore*
+    # LambdaInvokePermissionForFn3:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     FunctionName: ${self:custom.teamNamePrefix}-${self:custom.stackNameInfix}-docChangeIdentifier-${self:custom.stage}
+    #     Action: 'lambda:InvokeFunction'
+    #     Principal: states.amazonaws.com
+    #     SourceArn: arn:aws:states:::apistore*

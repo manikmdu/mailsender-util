@@ -24,6 +24,7 @@
     "util": "^0.11.0"
   },
   "devDependencies": {
-    "eslint": "^5.8.0"
+    "eslint": "^5.8.0",
+    "serverless-step-functions": "^1.8.0"
   }
 }

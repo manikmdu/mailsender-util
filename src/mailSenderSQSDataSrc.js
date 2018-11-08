@@ -1,7 +1,9 @@
 'use strict';
 var aws = require('aws-sdk'); // eslint-disable-line import/no-extraneous-dependencies
 var nodemailer = require('nodemailer');
-var emailCommons = require('email')
+aws.config.update({region: 'eu-west-1'});
+const fs = require('fs');
+
 
 var ses = new aws.SES();
 var s3 = new aws.S3();
@@ -22,18 +24,18 @@ function getS3File(bucket, key) {
 }
 
 module.exports.send = (event, context, callback) => {
-
-    getS3File('apistore.manikmdu.dev.doc.kiid', 'BE0128812931_BE_en_20180215000000.pdf')
+//function send (event, context, callback)  {
+    getS3File('manikmdu.test.nnip.dev.doc.kiid', 'kiid.zip')
         .then(function (fileData) {
             var mailOptions = {
-                from: 'manikmdu@me.com',
+                from: 'nnip.apistore@nnip.com',
                 subject: 'KIID Report',
                 html: `<p>Please find newly released KIID report.</p><p>Warm Regards <br/> NN Investment Partners</p>`,
-                to: 'manikmdu@aol.com',
+                to: event.data.emailAddress,
                 // bcc: Any BCC address you want here in an array,
                 attachments: [
                     {
-                        filename: fileData.filename,
+                        filename: 'kiid.zip',
                         content: fileData.Body
                     }
                 ]
@@ -63,3 +65,5 @@ module.exports.send = (event, context, callback) => {
             callback(err);
         });
 }
+
+//send(null, null,() => {});

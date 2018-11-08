@@ -25,7 +25,7 @@ function populateDocStoreTable(input, cb) {
 
     // Call DynamoDB to add the item to the table
     ddb.putItem({
-        TableName : 'DOC_STORE_TABLE',
+        TableName : 'MANIKMDU_DOC_STORE_TABLE',
         Item: {
             "docId":{"S":input.contentId},
             "dT_dST_cty_loc":{"S":input.type+'|'+input.subType+'|'+input.countries[0]+'|'+input.language},

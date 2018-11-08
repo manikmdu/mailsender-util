@@ -1,23 +1,31 @@
 'use strict';
 var AWS = require('aws-sdk');
 // Set the region 
-AWS.config.update({region: 'eu-west-1'});
+AWS.config.update({ region: 'eu-west-1' });
 var moment = require('moment');
 
 const docClient = new AWS.DynamoDB.DocumentClient();
-const tableName = process.env.docTableName || 'DOC_STORE_TABLE';
+const tableName = process.env.docTableName || 'MANIKMDU_DOC_STORE_TABLE';
 const tableIndexName = process.env.doctTableIndexName || 'dT_dST_cty_loc-index';
 
 exports.handler = async (event, context) => {
-//async function handler(event,context) {
+    //async function handler(event,context) {
     console.log('Received event:', JSON.stringify(event, null, 2));
-    console.log(tableName + " "+ tableIndexName);
-    var docChangeList=[];
+    console.log(tableName + " " + tableIndexName);
+    var docChangeList = [];
+    var result = {
+        docChangeExist: false,
+        docChanges:[]
+    }
     let keyConditionAttributes = await prepareKeyConditionExpression(event);
 
     await queryDB(keyConditionAttributes, docChangeList);
 
-    return docChangeList;
+    if(docChangeList.length > 0) {
+        result.docChangeExist = true;
+        result.docChanges = docChangeList;
+    }
+    return result;
 };
 
 async function queryDB(keyConditionAttributes, docChangeList) {
@@ -32,7 +40,7 @@ async function queryDB(keyConditionAttributes, docChangeList) {
             ":endDate": keyConditionAttributes.endDate
         }
     };
-    await new Promise(function(resolve, reject) {
+    await new Promise(function (resolve, reject) {
 
         docClient.query(params, function (err, data) {
             if (err) {
@@ -41,7 +49,7 @@ async function queryDB(keyConditionAttributes, docChangeList) {
             }
             else {
                 console.log("Query succeeded.");
-                for(const item of data.Items) {
+                for (const item of data.Items) {
                     console.log(" -", item.docId + ": " + item.loc);
                     docChangeList.push(item.loc);
                 }
@@ -60,9 +68,9 @@ async function prepareKeyConditionExpression(event) {
     var startDate;
     var endDate;
     var keyExpressionAttributes = {
-        startDate:'',
-        endDate:'',
-        dT_dST_cty_loc:''
+        startDate: '',
+        endDate: '',
+        dT_dST_cty_loc: ''
     }
 
     if (null !== event && null !== event.data) {
@@ -75,15 +83,35 @@ async function prepareKeyConditionExpression(event) {
         switch (period) {
             case 'THIS_MONTH':
                 keyExpressionAttributes.startDate = new moment().startOf('month').format("YYYY-MM-DD");
-                keyExpressionAttributes.endDate = new moment().endOf('month').format("YYYY-MM-DD");  
-                break; 
+                keyExpressionAttributes.endDate = new moment().endOf('month').format("YYYY-MM-DD");
+                break;
+            case 'LAST_MONTH':
+                keyExpressionAttributes.startDate = new moment().subtract(1, 'months').startOf('month').format("YYYY-MM-DD");
+                keyExpressionAttributes.endDate = new moment().subtract(1, 'months').endOf('month').format("YYYY-MM-DD");
+                break;
+            case 'LAST_WEEK':
+                keyExpressionAttributes.startDate = new moment().subtract(1, 'weeks').startOf('isoWeek').format("YYYY-MM-DD");
+                keyExpressionAttributes.endDate = new moment().subtract(1, 'weeks').endOf('isoWeek').format("YYYY-MM-DD");
+                break;
+            case 'THIS_WEEK':
+                keyExpressionAttributes.startDate = new moment().startOf('isoWeek').format("YYYY-MM-DD");
+                keyExpressionAttributes.endDate = new moment().endOf('isoWeek').format("YYYY-MM-DD");
+                break;
+            case 'LAST_DAY':
+                keyExpressionAttributes.startDate = new moment().subtract(1, 'days').format("YYYY-MM-DD");
+                keyExpressionAttributes.endDate = new moment().subtract(1, 'days').format("YYYY-MM-DD");
+                break;
+            case 'ONE_MONTH':
+            keyExpressionAttributes.startDate = new moment().subtract(1, 'days').format("YYYY-MM-DD");
+            keyExpressionAttributes.endDate = new moment().subtract(1, 'days').format("YYYY-MM-DD");
+            break;
         }
         //TODO: handle alternate flows if country, launguage, docType, docSubType data not available
-        keyExpressionAttributes.dT_dST_cty_loc = docType+'|'+docSubType+'|'+country+'|'+language;
+        keyExpressionAttributes.dT_dST_cty_loc = docType + '|' + docSubType + '|' + country + '|' + language;
 
-        console.log('Prepared keyExpressionAttributes:: '+ 
-            'startDate: '+ keyExpressionAttributes.startDate +
-            'endDate: '+ keyExpressionAttributes.endDate +
+        console.log('Prepared keyExpressionAttributes:: ' +
+            'startDate: ' + keyExpressionAttributes.startDate +
+            'endDate: ' + keyExpressionAttributes.endDate +
             'dT_dST_cty_loc: ' + keyExpressionAttributes.dT_dST_cty_loc);
 
         return keyExpressionAttributes;
@@ -94,7 +122,7 @@ async function prepareKeyConditionExpression(event) {
     }
 
 
-        
+
 }
 
 
